@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const bycrypt = require("bcrypt");
+const { v4: uuidv4 } = require('uuid');
 const Pool = require("pg").Pool;
 const cors = require("cors");
 const app = express();
@@ -37,8 +38,8 @@ app.post("/create-user", async (req, res) => {
     } else {
       bycrypt.hash(password, 10, async (err, hash) => {
         pool.query(
-          "INSERT INTO users (email, password, name) VALUES ($1, $2, $3)",
-          [email, hash, name],
+          "INSERT INTO users (uid, email, password, name) VALUES ($1, $2, $3, $4)",
+          [uuidv4(), email, hash, name],
           (error, results) => {
             if (error) {
               res.status(501).send(error);
@@ -63,7 +64,7 @@ app.get("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const client = await pool.connect();
+    const client = await connect();
 
     // Use a parameterized query to avoid SQL injection
     const query = "SELECT * FROM Users WHERE email = $1";
@@ -73,7 +74,7 @@ app.get("/login", async (req, res) => {
       // Email already exists in the table
       res.status(404).send({ error: "Email does not exists" });
     } else {
-      bycrypt.compare(password, result.rows[0].password, (err, result) => {
+      compare(password, result.rows[0].password, (err, result) => {
         if (result) {
           res.status(202).send({ message: "Login successful" });
         } else {
